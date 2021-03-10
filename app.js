@@ -6,7 +6,8 @@ const mongoose = require('mongoose');
 const path = require('path');
 const multer = require('multer');
 
-const routeBlog = require('./routes/blog')
+const routeBlog = require('./routes/blog');
+const routeAuth = require('./routes/auth');
 
 // Middleware - Body Parser
 // ====================================
@@ -53,6 +54,7 @@ app.use((req, res, next) => {
 // Routes
 // ====================================
 app.use('/blog', routeBlog);
+app.use('/auth', routeAuth);
 
 // General error handler
 // ====================================
