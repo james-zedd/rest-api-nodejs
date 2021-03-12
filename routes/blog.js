@@ -2,12 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
 const blogController = require('../controllers/blog');
+const isAuth = require('../middleware/is-auth');
 
 // GET /blog
-router.get('/', blogController.getItems);
+router.get('/', isAuth, blogController.getItems);
 
 // POST /blog/createItem
-router.post('/createItem', [
+router.post('/createItem', isAuth, [
   body('title')
     .trim()
     .isLength({ min: 5 }),
@@ -17,7 +18,7 @@ router.post('/createItem', [
 ], blogController.postCreateItem);
 
 // GET /blog/:itemId
-router.get('/:itemId', blogController.getBlogItem)
+router.get('/:itemId', isAuth, blogController.getBlogItem)
 
 // PUT /blog/:itemId
 router.put('/:itemId', [
@@ -30,6 +31,6 @@ router.put('/:itemId', [
 ], blogController.putBlogItem);
 
 // DELETE /blog/:itemId
-router.delete('/:itemId', blogController.deleteBlogItem);
+router.delete('/:itemId', isAuth, blogController.deleteBlogItem);
 
 module.exports = router;
