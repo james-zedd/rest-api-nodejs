@@ -3,6 +3,7 @@ const BlogPostModel = require('../models/blogItem');
 const { post } = require('../routes/blog');
 const fs = require('fs');
 const path = require('path');
+const User = require('../models/user');
 
 exports.getItems = (req,res, next) => {
   const currentPage = req.query.page || 1;
@@ -41,17 +42,27 @@ exports.postCreateItem = (req, res, next) => {
   const imageUrl = req.file.path;
   const title = req.body.title;
   const content = req.body.content;
+  let creator;
   const blogItem = new BlogPostModel({
     title: title,
     content: content,
     imageUrl: imageUrl,
-    creator: { name: 'Bob' },
+    creator: req.userId,
   });
   blogItem.save()
     .then(result => {
+      return User.findById(req.userId);
+    })
+    .then(user => {
+      creator = user;
+      user.posts.push(blogItem);
+      return user.save();
+    })
+    .then(result => {
       res.status(201).json({
         message: 'Post created successfully',
-        post: result
+        blogItem: blogItem,
+        creator: {_id: creator._id, name: creator.name}
       });
     })
     .catch(err => {
@@ -107,6 +118,11 @@ exports.putBlogItem = (req, res, next) => {
         error.statusCode = 404;
         throw error;
       }
+      if (post.creator.toString() !== req.userId) {
+        const error = new Error('Not authorized to update this!');
+        error.statusCode = 403;
+        throw error;
+      }
       if (imageUrl !== post.imageUrl) {
         clearImage(post.imageUrl);
       }
@@ -135,12 +151,23 @@ exports.deleteBlogItem = (req, res, next) => {
         error.statusCode = 404;
         throw error;
       }
+      if (item.creator.toString() !== req.userId) {
+        const error = new Error('Not authorized to delete this!');
+        error.statusCode = 403;
+        throw error;
+      }
       // Check logged in user
       clearImage(item.imageUrl);
       return BlogPostModel.findByIdAndDelete(itemId);
     })
     .then (result => {
-      console.log(result);
+      return User.findById(req.userId);
+    })
+    .then(user => {
+      user.posts.pull(itemId);
+      return user.save();
+    })
+    .then(result => {
       res.status(200).json({ message: 'Blog item deleted.' });
     })
     .catch(err => {
