@@ -4,15 +4,18 @@ const { post } = require('../routes/blog');
 const fs = require('fs');
 const path = require('path');
 const User = require('../models/user');
+const io = require('../socket');
 
 exports.getItems = (req,res, next) => {
   const currentPage = req.query.page || 1;
-  const itemsPerPage = 2;
+  const itemsPerPage = 4;
   let totalItems;
   BlogPostModel.find().countDocuments()
     .then(count => {
       totalItems = count;
       return BlogPostModel.find()
+        .populate('creator')
+        .sort({ createdAt: -1})
         .skip((currentPage - 1) * itemsPerPage)
         .limit(itemsPerPage);
     })
@@ -59,6 +62,7 @@ exports.postCreateItem = (req, res, next) => {
       return user.save();
     })
     .then(result => {
+      io.getIO().emit('blogItemEvent', { action: 'create', blogItem: {...blogItem._doc, creator: {_id: req.userId, name: creator.name } }});
       res.status(201).json({
         message: 'Post created successfully',
         blogItem: blogItem,
@@ -111,14 +115,16 @@ exports.putBlogItem = (req, res, next) => {
     error.statusCode = 422;
     throw error;
   }
-  BlogPostModel.findById(itemId)
+  BlogPostModel.findById(itemId).populate('creator')
     .then(post => {
+      console.log(post.creator._id.toString());
+      console.log('request!', req.params);
       if (!post) {
         const error = new Error('Could not find post');
         error.statusCode = 404;
         throw error;
       }
-      if (post.creator.toString() !== req.userId) {
+      if (post.creator._id.toString() !== req.userId) {
         const error = new Error('Not authorized to update this!');
         error.statusCode = 403;
         throw error;
@@ -132,6 +138,7 @@ exports.putBlogItem = (req, res, next) => {
       return post.save();
     })
     .then(result => {
+      io.getIO().emit('blogItemEvent', { action: 'update', blogItem: result })
       res.status(200).json({ message: 'Post updated', post: result })
     })
     .catch(err => {
@@ -168,6 +175,7 @@ exports.deleteBlogItem = (req, res, next) => {
       return user.save();
     })
     .then(result => {
+      io.getIO().emit('blogItemEvent', { action: 'delete', blogItem: itemId });
       res.status(200).json({ message: 'Blog item deleted.' });
     })
     .catch(err => {

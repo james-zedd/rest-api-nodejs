@@ -21,7 +21,7 @@ router.post('/createItem', isAuth, [
 router.get('/:itemId', isAuth, blogController.getBlogItem)
 
 // PUT /blog/:itemId
-router.put('/:itemId', [
+router.put('/:itemId', isAuth, [
   body('title')
     .trim()
     .isLength({ min: 5 }),
